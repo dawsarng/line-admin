@@ -48,8 +48,7 @@
   <div class="result" id="result">
     <div class="result-label">📋 ลิงก์สำหรับส่งลูกค้า:</div>
     <div class="link-box" id="link-text"></div>
-    <button class="share-btn" id="share-btn" onclick="shareToLine()">💚 แชร์ให้ลูกค้าใน LINE</button>
-    <button class="copy-btn" onclick="copyLink()">📋 คัดลอกลิงก์</button>
+      <button class="copy-btn" onclick="copyLink()">📋 คัดลอกลิงก์</button>
     <div class="copied" id="copied">✅ คัดลอกแล้ว!</div>
     <div class="expire" id="expire-info"></div>
   </div>
@@ -58,7 +57,7 @@
 <script>
 // ===== CONFIG — แก้ค่านี้ =====
 const LIFF_ID     = "2010274275-RjtpxaXy";
-const GAS_URL     = "https://script.google.com/macros/s/AKfycbz61DUgqB9oJP8a7TVkCKGoc_mf3yJCNLynNvrKkXpS2ScUcxz7MUarKVMf5Pb7jKE5iA/exec";
+const GAS_URL     = "https://script.google.com/macros/s/AKfycbxLVan70-fZn_LI1Lh8yZCs0YQhYObW5MA_EviRsFIFgHU1V4I2J7GoZNBIqkT-2DmrAA/exec";
 // ================================
 
 var currentLink = "", currentAgent = "";
@@ -115,40 +114,42 @@ function createLink() {
   document.body.appendChild(s);
 }
 
-function shareToLine() {
+function sendToCustomer() {
   if (!currentLink) { alert("กรุณาสร้างลิงก์ก่อน"); return; }
-  var flexMsg = {
-    type: "flex",
-    altText: "แบบประเมินความพึงพอใจจาก " + currentAgent,
-    contents: {
-      type: "bubble",
-      hero: {
-        type: "box", layout: "vertical",
-        contents: [{ type: "text", text: "⭐ ประเมินความพึงพอใจ", size: "xl", weight: "bold", color: "#ffffff", align: "center" }],
-        backgroundColor: "#00b900", paddingAll: "20px"
-      },
-      body: {
-        type: "box", layout: "vertical", spacing: "md",
-        contents: [
-          { type: "text", text: "สวัสดีครับ/ค่ะ", weight: "bold", size: "md" },
-          { type: "text", text: "ขอเชิญประเมินความพึงพอใจในการบริการของ " + currentAgent, wrap: true, size: "sm", color: "#555555" },
-          { type: "text", text: "⏰ ลิงก์ใช้ได้ภายใน 24 ชั่วโมง", size: "xs", color: "#aaaaaa", margin: "md" }
-        ]
-      },
-      footer: {
-        type: "box", layout: "vertical",
-        contents: [{ type: "button", action: { type: "uri", label: "กดที่นี่เพื่อประเมิน", uri: currentLink }, style: "primary", color: "#00b900" }]
-      }
+  var uid = document.getElementById("customer-uid").value.trim();
+  if (!uid) { alert("กรุณาใส่ LINE User ID ของลูกค้า"); return; }
+
+  var btn = document.getElementById("share-btn");
+  btn.disabled = true;
+  btn.textContent = "⏳ กำลังส่ง...";
+
+  var cbName = "cb2_" + Date.now();
+  window[cbName] = function(d) {
+    delete window[cbName];
+    document.getElementById("jsonp-" + cbName).remove();
+    btn.disabled = false;
+    btn.textContent = "💚 ส่ง Flex Message ให้ลูกค้า";
+    if (d.ok) {
+      alert("✅ ส่ง Flex Message ให้ลูกค้าแล้ว!");
+    } else {
+      alert("เกิดข้อผิดพลาด: " + d.error);
     }
   };
-
-  liff.shareTargetPicker([flexMsg])
-    .then(function(res) {
-      if (res && res.status === "success") alert("✅ ส่ง Flex Message ให้ลูกค้าแล้ว!");
-    })
-    .catch(function(err) {
-      alert("ไม่สามารถแชร์ได้: " + err.message);
-    });
+  var s = document.createElement("script");
+  s.id = "jsonp-" + cbName;
+  s.src = GAS_URL
+    + "?action=send_flex"
+    + "&userId=" + encodeURIComponent(uid)
+    + "&link="   + encodeURIComponent(currentLink)
+    + "&agent="  + encodeURIComponent(currentAgent)
+    + "&callback=" + cbName;
+  s.onerror = function() {
+    btn.disabled = false;
+    btn.textContent = "💚 ส่ง Flex Message ให้ลูกค้า";
+    alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    delete window[cbName]; s.remove();
+  };
+  document.body.appendChild(s);
 }
 
 function copyLink() {
