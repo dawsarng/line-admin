@@ -21,8 +21,6 @@
     .btn{width:100%;background:#00b900;color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;margin-bottom:10px}
     .btn:hover{background:#009a00}
     .btn:disabled{background:#ccc;cursor:not-allowed}
-    .share-btn{width:100%;background:#06c755;color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;margin-bottom:8px}
-    .share-btn:hover{background:#05a847}
     .copy-btn{width:100%;background:#1a73e8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer}
     .copy-btn:hover{background:#1557b0}
     .result{display:none;margin-top:20px;background:#f0fff0;border:1.5px solid #00b900;border-radius:12px;padding:16px}
@@ -114,43 +112,6 @@ function createLink() {
   document.body.appendChild(s);
 }
 
-function sendToCustomer() {
-  if (!currentLink) { alert("กรุณาสร้างลิงก์ก่อน"); return; }
-  var uid = document.getElementById("customer-uid").value.trim();
-  if (!uid) { alert("กรุณาใส่ LINE User ID ของลูกค้า"); return; }
-
-  var btn = document.getElementById("share-btn");
-  btn.disabled = true;
-  btn.textContent = "⏳ กำลังส่ง...";
-
-  var cbName = "cb2_" + Date.now();
-  window[cbName] = function(d) {
-    delete window[cbName];
-    document.getElementById("jsonp-" + cbName).remove();
-    btn.disabled = false;
-    btn.textContent = "💚 ส่ง Flex Message ให้ลูกค้า";
-    if (d.ok) {
-      alert("✅ ส่ง Flex Message ให้ลูกค้าแล้ว!");
-    } else {
-      alert("เกิดข้อผิดพลาด: " + d.error);
-    }
-  };
-  var s = document.createElement("script");
-  s.id = "jsonp-" + cbName;
-  s.src = GAS_URL
-    + "?action=send_flex"
-    + "&userId=" + encodeURIComponent(uid)
-    + "&link="   + encodeURIComponent(currentLink)
-    + "&agent="  + encodeURIComponent(currentAgent)
-    + "&callback=" + cbName;
-  s.onerror = function() {
-    btn.disabled = false;
-    btn.textContent = "💚 ส่ง Flex Message ให้ลูกค้า";
-    alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
-    delete window[cbName]; s.remove();
-  };
-  document.body.appendChild(s);
-}
 
 function copyLink() {
   var t = currentLink;
