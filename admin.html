@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>สร้างลิงก์ประเมิน</title>
+  <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#00b900,#00c853);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .card{background:#fff;border-radius:20px;padding:32px 24px;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+    .logo{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+    .logo-icon{width:40px;height:40px;background:#00b900;border-radius:10px;display:flex;align-items:center;justify-content:center}
+    .logo-icon svg{width:22px;height:22px;fill:#fff}
+    .logo-text{font-size:16px;font-weight:700;color:#222}
+    .logo-sub{font-size:12px;color:#888}
+    label{font-size:13px;font-weight:600;color:#555;display:block;margin-bottom:8px}
+    input[type=text]{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:20px;font-family:inherit;color:#333}
+    input[type=text]:focus{outline:none;border-color:#00b900}
+    input[type=text]::placeholder{color:#bbb}
+    .btn{width:100%;background:#00b900;color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;margin-bottom:10px}
+    .btn:hover{background:#009a00}
+    .btn:disabled{background:#ccc;cursor:not-allowed}
+    .share-btn{width:100%;background:#06c755;color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;margin-bottom:8px}
+    .share-btn:hover{background:#05a847}
+    .copy-btn{width:100%;background:#1a73e8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer}
+    .copy-btn:hover{background:#1557b0}
+    .result{display:none;margin-top:20px;background:#f0fff0;border:1.5px solid #00b900;border-radius:12px;padding:16px}
+    .result-label{font-size:12px;color:#555;margin-bottom:8px;font-weight:600}
+    .link-box{font-size:13px;color:#1a73e8;word-break:break-all;background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;margin-bottom:12px;line-height:1.6}
+    .copied{color:#00b900;font-size:13px;text-align:center;margin-top:6px;display:none;font-weight:600}
+    .expire{font-size:11px;color:#aaa;text-align:center;margin-top:8px}
+    .loading{text-align:center;color:#888;padding:10px;display:none}
+    .spinner{width:28px;height:28px;border:3px solid #e0e0e0;border-top-color:#00b900;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>
+    <div><div class="logo-text">สร้างลิงก์ประเมิน</div><div class="logo-sub">Line OA Admin Panel</div></div>
+  </div>
+  <label>ชื่อพนักงาน</label>
+  <input type="text" id="agent-name" placeholder="พิมพ์ชื่อของคุณ เช่น สมชาย"/>
+  <button class="btn" id="gen-btn" onclick="createLink()">🔗 สร้างลิงก์ใหม่</button>
+  <div class="loading" id="loading"><div class="spinner"></div>กำลังสร้างลิงก์...</div>
+  <div class="result" id="result">
+    <div class="result-label">📋 ลิงก์สำหรับส่งลูกค้า:</div>
+    <div class="link-box" id="link-text"></div>
+    <button class="share-btn" id="share-btn" onclick="shareToLine()">💚 แชร์ให้ลูกค้าใน LINE</button>
+    <button class="copy-btn" onclick="copyLink()">📋 คัดลอกลิงก์</button>
+    <div class="copied" id="copied">✅ คัดลอกแล้ว!</div>
+    <div class="expire" id="expire-info"></div>
+  </div>
+</div>
+
+<script>
+// ===== CONFIG — แก้ค่านี้ =====
+const LIFF_ID     = "2010274275-RjtpxaXy";
+const GAS_URL     = "https://script.google.com/macros/s/AKfycbz0qv11MDXcDSs1kBy86OrIFh7zVAYoCwBbJvLQzxs-1OH17tOiiuK9IpkDXAZpgxw0zA/exec";
+// ================================
+
+var currentLink = "", currentAgent = "";
+
+// Init LIFF
+liff.init({ liffId: LIFF_ID }).then(function() {
+  if (!liff.isLoggedIn()) {
+    liff.login({ redirectUri: window.location.href });
+    return;
+  }
+  // ดึงชื่อจาก LINE profile
+  liff.getProfile().then(function(p) {
+    var input = document.getElementById("agent-name");
+    if (!input.value) input.value = p.displayName;
+  });
+}).catch(function(err) {
+  console.error("LIFF init failed:", err);
+});
+
+function createLink() {
+  var name = document.getElementById("agent-name").value.trim();
+  if (!name) { alert("กรุณาใส่ชื่อพนักงานก่อน"); return; }
+  currentAgent = name;
+
+  var btn = document.getElementById("gen-btn");
+  btn.disabled = true;
+  document.getElementById("result").style.display = "none";
+  document.getElementById("loading").style.display = "block";
+
+  fetch(GAS_URL + "?action=create_link&name=" + encodeURIComponent(name))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById("loading").style.display = "none";
+      if (!d.ok) throw new Error(d.error);
+      currentLink = d.link;
+      document.getElementById("link-text").textContent = d.link;
+      document.getElementById("expire-info").textContent = "⏰ หมดอายุ 24 ชั่วโมง";
+      document.getElementById("result").style.display = "block";
+      document.getElementById("copied").style.display = "none";
+      btn.disabled = false;
+    })
+    .catch(function(err) {
+      document.getElementById("loading").style.display = "none";
+      alert("เกิดข้อผิดพลาด: " + err.message);
+      btn.disabled = false;
+    });
+}
+
+function shareToLine() {
+  if (!currentLink) { alert("กรุณาสร้างลิงก์ก่อน"); return; }
+  var flexMsg = {
+    type: "flex",
+    altText: "แบบประเมินความพึงพอใจจาก " + currentAgent,
+    contents: {
+      type: "bubble",
+      hero: {
+        type: "box", layout: "vertical",
+        contents: [{ type: "text", text: "⭐ ประเมินความพึงพอใจ", size: "xl", weight: "bold", color: "#ffffff", align: "center" }],
+        backgroundColor: "#00b900", paddingAll: "20px"
+      },
+      body: {
+        type: "box", layout: "vertical", spacing: "md",
+        contents: [
+          { type: "text", text: "สวัสดีครับ/ค่ะ", weight: "bold", size: "md" },
+          { type: "text", text: "ขอเชิญประเมินความพึงพอใจในการบริการของ " + currentAgent, wrap: true, size: "sm", color: "#555555" },
+          { type: "text", text: "⏰ ลิงก์ใช้ได้ภายใน 24 ชั่วโมง", size: "xs", color: "#aaaaaa", margin: "md" }
+        ]
+      },
+      footer: {
+        type: "box", layout: "vertical",
+        contents: [{ type: "button", action: { type: "uri", label: "กดที่นี่เพื่อประเมิน", uri: currentLink }, style: "primary", color: "#00b900" }]
+      }
+    }
+  };
+
+  liff.shareTargetPicker([flexMsg])
+    .then(function(res) {
+      if (res && res.status === "success") alert("✅ ส่ง Flex Message ให้ลูกค้าแล้ว!");
+    })
+    .catch(function(err) {
+      alert("ไม่สามารถแชร์ได้: " + err.message);
+    });
+}
+
+function copyLink() {
+  var t = currentLink;
+  if (!t) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(t).then(function() {
+      document.getElementById("copied").style.display = "block";
+      setTimeout(function() { document.getElementById("copied").style.display = "none"; }, 3000);
+    });
+  } else {
+    var ta = document.createElement("textarea");
+    ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    document.getElementById("copied").style.display = "block";
+    setTimeout(function() { document.getElementById("copied").style.display = "none"; }, 3000);
+  }
+}
+</script>
+</body>
+</html>
