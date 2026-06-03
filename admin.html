@@ -58,7 +58,7 @@
 <script>
 // ===== CONFIG — แก้ค่านี้ =====
 const LIFF_ID     = "2010274275-RjtpxaXy";
-const GAS_URL     = "https://script.google.com/macros/s/AKfycbwO5UDH7Ch2oDL_4CgZhJ_vsvtlESJvUA9pu3bSmq2IgwhjLKxGmuXvCjZdK39unjdYdA/exec";
+const GAS_URL     = "https://script.google.com/macros/s/AKfycbz61DUgqB9oJP8a7TVkCKGoc_mf3yJCNLynNvrKkXpS2ScUcxz7MUarKVMf5Pb7jKE5iA/exec";
 // ================================
 
 var currentLink = "", currentAgent = "";
@@ -88,23 +88,31 @@ function createLink() {
   document.getElementById("result").style.display = "none";
   document.getElementById("loading").style.display = "block";
 
-  fetch(GAS_URL + "?action=create_link&name=" + encodeURIComponent(name))
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      document.getElementById("loading").style.display = "none";
-      if (!d.ok) throw new Error(d.error);
-      currentLink = d.link;
-      document.getElementById("link-text").textContent = d.link;
-      document.getElementById("expire-info").textContent = "⏰ หมดอายุ 24 ชั่วโมง";
-      document.getElementById("result").style.display = "block";
-      document.getElementById("copied").style.display = "none";
-      btn.disabled = false;
-    })
-    .catch(function(err) {
-      document.getElementById("loading").style.display = "none";
-      alert("เกิดข้อผิดพลาด: " + err.message);
-      btn.disabled = false;
-    });
+  // ใช้ JSONP แทน fetch เพื่อหลีกเลี่ยง CORS
+  var cbName = "cb_" + Date.now();
+  window[cbName] = function(d) {
+    document.getElementById("loading").style.display = "none";
+    delete window[cbName];
+    document.getElementById("jsonp-" + cbName).remove();
+    if (!d.ok) { alert("เกิดข้อผิดพลาด: " + d.error); btn.disabled = false; return; }
+    currentLink = d.link;
+    document.getElementById("link-text").textContent = d.link;
+    document.getElementById("expire-info").textContent = "⏰ หมดอายุ 24 ชั่วโมง";
+    document.getElementById("result").style.display = "block";
+    document.getElementById("copied").style.display = "none";
+    btn.disabled = false;
+  };
+  var s = document.createElement("script");
+  s.id = "jsonp-" + cbName;
+  s.src = GAS_URL + "?action=create_link&name=" + encodeURIComponent(name) + "&callback=" + cbName;
+  s.onerror = function() {
+    document.getElementById("loading").style.display = "none";
+    alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    btn.disabled = false;
+    delete window[cbName];
+    s.remove();
+  };
+  document.body.appendChild(s);
 }
 
 function shareToLine() {
