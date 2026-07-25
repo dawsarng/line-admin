@@ -50,7 +50,7 @@
       <div class="big">
         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
       </div>
-      <h2>ขอบคุณมากค่ะ 🙏</h2>
+      <h2>ขอบคุณมากครับ 🙏</h2>
       <p>ความเห็นของคุณถูกส่งเรียบร้อยแล้ว</p>
     </div>
 
@@ -116,7 +116,7 @@ async function userAlreadyDone(){
   if (await initLiff() === 'redirect') return;              // กำลัง redirect ไปล็อกอิน LINE
   if (!empName){ show('errBox'); return; }
   if (await isUsed()){ showDone('ลิงก์นี้ถูกใช้ประเมินแล้ว', 'แต่ละลิงก์ประเมินได้เพียงครั้งเดียว'); return; }
-  if (await userAlreadyDone()){ showDone('คุณได้ประเมินพนักงานคนนี้แล้ว', 'ขอบคุณที่ร่วมประเมินครับ'); return; }
+  if (await userAlreadyDone()){ showDone('คุณเพิ่งประเมินพนักงานคนนี้ไป', 'ประเมินได้อีกครั้งเมื่อผ่านไป 24 ชั่วโมง'); return; }
   $('#formWho').textContent = empName;
   $('#formAvatar').textContent = initial(empName);
   renderRateRows();
@@ -151,7 +151,7 @@ $('#submitBtn').onclick = async () => {
 
   // ตรวจซ้ำอีกครั้งก่อนส่ง
   if (await isUsed()){ showDone('ลิงก์นี้ถูกใช้ประเมินแล้ว', 'แต่ละลิงก์ประเมินได้เพียงครั้งเดียว'); return; }
-  if (await userAlreadyDone()){ showDone('คุณได้ประเมินพนักงานคนนี้แล้ว', 'ขอบคุณที่ร่วมประเมินครับ'); return; }
+  if (await userAlreadyDone()){ showDone('คุณเพิ่งประเมินพนักงานคนนี้ไป', 'ประเมินได้อีกครั้งเมื่อผ่านไป 24 ชั่วโมง'); return; }
 
   const payload = JSON.stringify({
     employee: empName,
@@ -169,7 +169,7 @@ $('#submitBtn').onclick = async () => {
     });
     let data = null; try { data = await res.json(); } catch (_) {}
     if (data && data.ok === false && data.reason === 'used'){ showDone('ลิงก์นี้ถูกใช้ประเมินแล้ว', 'แต่ละลิงก์ประเมินได้เพียงครั้งเดียว'); return; }
-    if (data && data.ok === false && data.reason === 'duplicate_user'){ showDone('คุณได้ประเมินพนักงานคนนี้แล้ว', 'ขอบคุณที่ร่วมประเมินครับ'); return; }
+    if (data && data.ok === false && data.reason === 'duplicate_user'){ showDone('คุณเพิ่งประเมินพนักงานคนนี้ไป', 'ประเมินได้อีกครั้งเมื่อผ่านไป 24 ชั่วโมง'); return; }
     show('thanks'); window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (err){
     // อ่านผลไม่ได้ → ยืนยันด้วย GET
