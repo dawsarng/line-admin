@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แบบประเมินพนักงาน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+
+  <div class="appbar">
+    <div class="brand"><span class="dot">L</span> แบบประเมิน</div>
+  </div>
+
+  <main class="page">
+    <!-- กำลังเปิด -->
+    <div class="card" id="loading" style="text-align:center;padding:34px 18px">
+      <p style="color:var(--muted);margin:0">กำลังเปิดแบบประเมิน...</p>
+    </div>
+
+    <!-- ฟอร์ม -->
+    <div id="formBody" style="display:none">
+      <div class="who-card">
+        <div class="avatar" id="formAvatar">?</div>
+        <div class="t">
+          <small>คุณกำลังให้คะแนน</small>
+          <b id="formWho">พนักงาน</b>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="eyebrow">ให้คะแนน</div>
+        <h2 class="screen-title" style="font-size:18px">บริการเป็นอย่างไรบ้าง?</h2>
+        <div id="rateRows"></div>
+      </div>
+
+      <div class="card">
+        <label class="field" for="comment">อยากบอกอะไรเพิ่มเติมไหม? <span style="color:var(--muted);font-weight:400">(ไม่บังคับ)</span></label>
+        <textarea id="comment" placeholder="เช่น บริการดีมาก ประทับใจ..."></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="submitBtn" style="margin-top:14px">ส่งแบบประเมิน</button>
+    </div>
+
+    <!-- ขอบคุณ -->
+    <div class="thanks card" id="thanks">
+      <div class="big">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <h2>ขอบคุณมากครับ 🙏</h2>
+      <p>ความเห็นของคุณถูกส่งเรียบร้อยแล้ว</p>
+    </div>
+
+    <!-- ประเมินไปแล้ว (ลิงก์ซ้ำ หรือ คนเดิมซ้ำ) -->
+    <div class="card" id="usedBox" style="display:none;text-align:center;padding:30px 18px">
+      <div class="big" style="width:60px;height:60px;margin:0 auto 12px;border-radius:50%;background:var(--amber-soft);display:grid;place-items:center;color:var(--amber)">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </div>
+      <h2 class="screen-title" style="font-size:19px" id="usedTitle">ประเมินไปแล้ว</h2>
+      <p style="color:var(--muted);margin:6px 0 0" id="usedText"></p>
+    </div>
+
+    <!-- ลิงก์ไม่ถูกต้อง -->
+    <div class="card" id="errBox" style="display:none;text-align:center;padding:30px 18px">
+      <h2 class="screen-title" style="font-size:19px">ลิงก์ไม่ถูกต้อง</h2>
+      <p style="color:var(--muted);margin:6px 0 0">กรุณาสแกน QR หรือเปิดลิงก์ประเมินจากทางร้านอีกครั้ง</p>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const params  = new URLSearchParams(location.search);
+const empName = (params.get('e') || '').trim();
+const token   = (params.get('t') || '').trim();
+let lineUserId = '';
+let ratings = {};
+
+function show(id){
+  ['loading','formBody','thanks','usedBox','errBox'].forEach(x => {
+    const el = $('#'+x); if(!el) return;
+    if (x === 'thanks') el.classList.toggle('show', x === id);
+    else el.style.display = (x === id) ? 'block' : 'none';
+  });
+}
+function showDone(title, text){ $('#usedTitle').textContent = title; $('#usedText').textContent = text; show('usedBox'); }
+
+/* ---- LIFF: ดึง LINE User ID ---- */
+async function initLiff(){
+  if (!CONFIG.FORM_LIFF_ID || typeof liff === 'undefined') return;
+  try {
+    await liff.init({ liffId: CONFIG.FORM_LIFF_ID });
+    if (!liff.isLoggedIn()){ liff.login(); return 'redirect'; }
+    const p = await liff.getProfile();
+    lineUserId = p.userId || '';
+  } catch (e){ /* LIFF ใช้ไม่ได้ → กันได้แค่ระดับลิงก์ */ }
+}
+
+/* ---- เช็กซ้ำผ่าน GET (อ่านค่าได้ชัวร์) ---- */
+async function isUsed(){
+  if (!CONFIG.API_URL || !token) return false;
+  try { const r = await fetch(CONFIG.API_URL + '?check=' + encodeURIComponent(token)); return !!(await r.json()).used; }
+  catch (e){ return false; }
+}
+async function userAlreadyDone(){
+  if (!CONFIG.API_URL || !lineUserId) return false;
+  try { const r = await fetch(CONFIG.API_URL + '?checkUser=' + encodeURIComponent(lineUserId) + '&emp=' + encodeURIComponent(empName)); return !!(await r.json()).done; }
+  catch (e){ return false; }
+}
+
+/* ---- เปิดหน้า ---- */
+(async function init(){
+  if (await initLiff() === 'redirect') return;              // กำลัง redirect ไปล็อกอิน LINE
+  if (!empName){ show('errBox'); return; }
+  if (await isUsed()){ showDone('ลิงก์นี้ถูกใช้ประเมินแล้ว', 'แต่ละลิงก์ประเมินได้เพียงครั้งเดียว'); return; }
+  if (await userAlreadyDone()){ showDone('คุณได้ประเมินพนักงานคนนี้แล้ว', 'ขอบคุณที่ร่วมประเมินครับ'); return; }
+  $('#formWho').textContent = empName;
+  $('#formAvatar').textContent = initial(empName);
+  renderRateRows();
+  show('formBody');
+})();
+
+function renderRateRows(){
+  $('#rateRows').innerHTML = CONFIG.CATEGORIES.map(c => `
+    <div class="rate-row">
+      <span class="lbl">${c.label}</span>
+      <div class="stars" data-cat="${c.key}">${[1,2,3,4,5].map(i => `
+        <button class="star" data-v="${i}" aria-label="${i} ดาว">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.7 1.4 6.8L12 17.8 5.9 21.2l1.4-6.8L2.2 9.7l6.9-.7z"/></svg>
+        </button>`).join('')}</div>
+    </div>`).join('');
+  $$('#rateRows .star').forEach(st => st.onclick = () => {
+    const wrap = st.parentElement, cat = wrap.dataset.cat, v = +st.dataset.v;
+    ratings[cat] = v;
+    [...wrap.children].forEach((s, i) => s.classList.toggle('on', i < v));
+    st.classList.add('pop'); setTimeout(() => st.classList.remove('pop'), 150);
+  });
+}
+
+$('#submitBtn').onclick = async () => {
+  if (Object.keys(ratings).length < CONFIG.CATEGORIES.length){ toast('กรุณาให้คะแนนให้ครบทุกข้อ'); return; }
+  const vals = CONFIG.CATEGORIES.map(c => ratings[c.key]);
+  const average = +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
+
+  const btn = $('#submitBtn'); btn.disabled = true; btn.textContent = 'กำลังส่ง...';
+
+  if (!CONFIG.API_URL){ toast('ยังไม่ได้ตั้งค่า API_URL ใน config.js'); btn.disabled = false; btn.textContent = 'ส่งแบบประเมิน'; return; }
+
+  // ตรวจซ้ำอีกครั้งก่อนส่ง
+  if (await isUsed()){ showDone('ลิงก์นี้ถูกใช้ประเมินแล้ว', 'แต่ละลิงก์ประเมินได้เพียงครั้งเดียว'); return; }
+  if (await userAlreadyDone()){ showDone('คุณได้ประเมินพนักงานคนนี้แล้ว', 'ขอบคุณที่ร่วมประเมินครับ'); return; }
+
+  const payload = JSON.stringify({
+    employee: empName,
+    courtesy: ratings.courtesy, speed: ratings.speed, knowledge: ratings.knowledge,
+    solving: ratings.solving, overall: ratings.overall,
+    average, comment: $('#comment').value.trim(),
+    token, userId: lineUserId
+  });
+
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: payload
+    });
+    let data = null; try { data = await res.json(); } catch (_) {}
+    if (data && data.ok === false && data.reason === 'used'){ showDone('ลิงก์นี้ถูกใช้ประเมินแล้ว', 'แต่ละลิงก์ประเมินได้เพียงครั้งเดียว'); return; }
+    if (data && data.ok === false && data.reason === 'duplicate_user'){ showDone('คุณได้ประเมินพนักงานคนนี้แล้ว', 'ขอบคุณที่ร่วมประเมินครับ'); return; }
+    show('thanks'); window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err){
+    // อ่านผลไม่ได้ → ยืนยันด้วย GET
+    if (await isUsed() || await userAlreadyDone()){ show('thanks'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    else { toast('ส่งไม่สำเร็จ ลองอีกครั้ง'); btn.disabled = false; btn.textContent = 'ส่งแบบประเมิน'; }
+  }
+};
+</script>
+</body>
+</html>

@@ -1,132 +1,111 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>สร้างลิงก์ประเมิน</title>
-  <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#00b900,#00c853);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-    .card{background:#fff;border-radius:20px;padding:32px 24px;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.15)}
-    .logo{display:flex;align-items:center;gap:10px;margin-bottom:24px}
-    .logo-icon{width:40px;height:40px;background:#00b900;border-radius:10px;display:flex;align-items:center;justify-content:center}
-    .logo-icon svg{width:22px;height:22px;fill:#fff}
-    .logo-text{font-size:16px;font-weight:700;color:#222}
-    .logo-sub{font-size:12px;color:#888}
-    label{font-size:13px;font-weight:600;color:#555;display:block;margin-bottom:8px}
-    input[type=text]{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:20px;font-family:inherit;color:#333}
-    input[type=text]:focus{outline:none;border-color:#00b900}
-    input[type=text]::placeholder{color:#bbb}
-    .btn{width:100%;background:#00b900;color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;margin-bottom:10px}
-    .btn:hover{background:#009a00}
-    .btn:disabled{background:#ccc;cursor:not-allowed}
-    .copy-btn{width:100%;background:#1a73e8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer}
-    .copy-btn:hover{background:#1557b0}
-    .result{display:none;margin-top:20px;background:#f0fff0;border:1.5px solid #00b900;border-radius:12px;padding:16px}
-    .result-label{font-size:12px;color:#555;margin-bottom:8px;font-weight:600}
-    .link-box{font-size:13px;color:#1a73e8;word-break:break-all;background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;margin-bottom:12px;line-height:1.6}
-    .copied{color:#00b900;font-size:13px;text-align:center;margin-top:6px;display:none;font-weight:600}
-    .expire{font-size:11px;color:#aaa;text-align:center;margin-top:8px}
-    .loading{text-align:center;color:#888;padding:10px;display:none}
-    .spinner{width:28px;height:28px;border:3px solid #e0e0e0;border-top-color:#00b900;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px}
-    @keyframes spin{to{transform:rotate(360deg)}}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แผงแอดมิน · สร้างลิงก์ประเมิน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
 </head>
 <body>
-<div class="card">
-  <div class="logo">
-    <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>
-    <div><div class="logo-text">สร้างลิงก์ประเมิน</div><div class="logo-sub">Line OA Admin Panel</div></div>
+
+  <div class="appbar">
+    <div class="brand"><span class="dot">L</span> แผงแอดมิน</div>
+    <a class="link" href="dashboard.html">ดูสรุปผล →</a>
   </div>
-  <label>ชื่อพนักงาน</label>
-  <input type="text" id="agent-name" placeholder="พิมพ์ชื่อของคุณ เช่น สมชาย"/>
-  <button class="btn" id="gen-btn" onclick="createLink()">🔗 สร้างลิงก์ใหม่</button>
-  <div class="loading" id="loading"><div class="spinner"></div>กำลังสร้างลิงก์...</div>
-  <div class="result" id="result">
-    <div class="result-label">📋 ลิงก์สำหรับส่งลูกค้า:</div>
-    <div class="link-box" id="link-text"></div>
-      <button class="copy-btn" onclick="copyLink()">📋 คัดลอกลิงก์</button>
-    <div class="copied" id="copied">✅ คัดลอกแล้ว!</div>
-    <div class="expire" id="expire-info"></div>
-  </div>
-</div>
+
+  <main class="page">
+    <div class="card">
+      <div class="eyebrow">สร้างลิงก์</div>
+      <h1 class="screen-title">สร้างลิงก์ประเมิน</h1>
+      <p class="screen-sub">เลือกพนักงาน แล้วสร้างลิงก์หรือ QR ให้ลูกค้าประเมิน</p>
+
+      <label class="field" for="empSelect">พนักงาน</label>
+      <div class="row" style="margin-bottom:14px">
+        <select id="empSelect" style="flex:2"></select>
+        <button class="btn btn-ghost btn-sm" id="addEmpBtn" style="flex:1;white-space:nowrap">+ เพิ่ม</button>
+      </div>
+
+      <button class="btn btn-primary" id="genBtn">🔗 สร้างลิงก์ประเมิน</button>
+
+      <div class="link-result" id="linkResult">
+        <div class="qr-wrap">
+          <div class="qr-box" id="qrBox"></div>
+          <div class="qr-meta">
+            <div class="who" id="resultWho">—</div>
+            <div class="hint">ให้ลูกค้าสแกน QR หรือส่งลิงก์ด้านล่าง</div>
+          </div>
+        </div>
+        <div class="linkbar">
+          <code id="resultLink">—</code>
+          <button class="btn btn-primary btn-sm" id="copyBtn">คัดลอก</button>
+        </div>
+        <a class="btn btn-ghost btn-sm" id="openBtn" href="#" target="_blank" rel="noopener" style="width:100%;margin-top:10px">เปิดฟอร์มนี้เพื่อดูตัวอย่าง →</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="recent-head"><h3>ลิงก์ที่สร้างในรอบนี้</h3></div>
+      <div id="recentLinks"></div>
+    </div>
+  </main>
+
+  <p class="note">รายชื่อพนักงานแก้ไขถาวรได้ในไฟล์ <b>config.js</b> · ปุ่ม "+ เพิ่ม" เพิ่มได้เฉพาะรอบนี้เท่านั้น</p>
+  <div class="toast" id="toast"></div>
 
 <script>
-// ===== CONFIG — แก้ค่านี้ =====
-const LIFF_ID     = "2010274275-RjtpxaXy";
-const GAS_URL     = "https://script.google.com/macros/s/AKfycbxLVan70-fZn_LI1Lh8yZCs0YQhYObW5MA_EviRsFIFgHU1V4I2J7GoZNBIqkT-2DmrAA/exec";
-// ================================
+let employees = [...CONFIG.EMPLOYEES];
+let recent = [];
+let currentUrl = '';
 
-var currentLink = "", currentAgent = "";
-
-// Init LIFF
-liff.init({ liffId: LIFF_ID }).then(function() {
-  if (!liff.isLoggedIn()) {
-    liff.login({ redirectUri: window.location.href });
-    return;
-  }
-  // ดึงชื่อจาก LINE profile
-  liff.getProfile().then(function(p) {
-    var input = document.getElementById("agent-name");
-    if (!input.value) input.value = p.displayName;
-  });
-}).catch(function(err) {
-  console.error("LIFF init failed:", err);
-});
-
-function createLink() {
-  var name = document.getElementById("agent-name").value.trim();
-  if (!name) { alert("กรุณาใส่ชื่อพนักงานก่อน"); return; }
-  currentAgent = name;
-
-  var btn = document.getElementById("gen-btn");
-  btn.disabled = true;
-  document.getElementById("result").style.display = "none";
-  document.getElementById("loading").style.display = "block";
-
-  // ใช้ JSONP แทน fetch เพื่อหลีกเลี่ยง CORS
-  var cbName = "cb_" + Date.now();
-  window[cbName] = function(d) {
-    document.getElementById("loading").style.display = "none";
-    delete window[cbName];
-    document.getElementById("jsonp-" + cbName).remove();
-    if (!d.ok) { alert("เกิดข้อผิดพลาด: " + d.error); btn.disabled = false; return; }
-    currentLink = d.link;
-    document.getElementById("link-text").textContent = d.link;
-    document.getElementById("expire-info").textContent = "⏰ หมดอายุ 24 ชั่วโมง";
-    document.getElementById("result").style.display = "block";
-    document.getElementById("copied").style.display = "none";
-    btn.disabled = false;
-  };
-  var s = document.createElement("script");
-  s.id = "jsonp-" + cbName;
-  s.src = GAS_URL + "?action=create_link&name=" + encodeURIComponent(name) + "&callback=" + cbName;
-  s.onerror = function() {
-    document.getElementById("loading").style.display = "none";
-    alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
-    btn.disabled = false;
-    delete window[cbName];
-    s.remove();
-  };
-  document.body.appendChild(s);
+function fillSelect(){
+  $('#empSelect').innerHTML = employees.map(n => `<option>${n}</option>`).join('');
+}
+function buildUrl(name){
+  const token = Math.random().toString(36).slice(2, 10);
+  const q = '?e=' + encodeURIComponent(name) + '&t=' + token;
+  // ถ้าตั้ง LIFF ไว้ ให้ลิงก์เปิดผ่าน LINE (เพื่อดึง User ID กันคนเดิมประเมินซ้ำ)
+  if (CONFIG.FORM_LIFF_ID) return 'https://liff.line.me/' + CONFIG.FORM_LIFF_ID + q;
+  return CONFIG.FORM_BASE_URL + q;
 }
 
-function copyLink() {
-  var t = currentLink;
-  if (!t) return;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(t).then(function() {
-      document.getElementById("copied").style.display = "block";
-      setTimeout(function() { document.getElementById("copied").style.display = "none"; }, 3000);
-    });
-  } else {
-    var ta = document.createElement("textarea");
-    ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
-    document.getElementById("copied").style.display = "block";
-    setTimeout(function() { document.getElementById("copied").style.display = "none"; }, 3000);
-  }
+$('#addEmpBtn').onclick = () => {
+  const name = prompt('ชื่อพนักงานใหม่ (รอบนี้):');
+  if (name && name.trim()){ employees.push(name.trim()); fillSelect(); $('#empSelect').value = name.trim(); toast('เพิ่มแล้ว'); }
+};
+
+$('#genBtn').onclick = () => {
+  const name = $('#empSelect').value;
+  currentUrl = buildUrl(name);
+  $('#resultWho').textContent = 'ประเมิน: ' + name;
+  $('#resultLink').textContent = currentUrl;
+  $('#openBtn').href = currentUrl;
+  const box = $('#qrBox'); box.innerHTML = '';
+  new QRCode(box, { text: currentUrl, width: 96, height: 96, colorDark: '#04913F', colorLight: '#ffffff' });
+  $('#linkResult').classList.add('show');
+  recent.unshift({ name, at: Date.now() });
+  renderRecent();
+  toast('สร้างลิงก์เรียบร้อย');
+};
+
+$('#copyBtn').onclick = async () => {
+  try { await navigator.clipboard.writeText(currentUrl); } catch(e){}
+  toast('คัดลอกลิงก์แล้ว ✓');
+};
+
+function renderRecent(){
+  const el = $('#recentLinks');
+  el.innerHTML = recent.length ? recent.slice(0, 8).map(l => `
+    <div class="link-item">
+      <div class="avatar">${initial(l.name)}</div>
+      <div class="info"><b>${escapeHtml(l.name)}</b><span>สร้างเมื่อ ${timeAgo(l.at)}</span></div>
+    </div>`).join('') : '<div class="empty">ยังไม่ได้สร้างลิงก์</div>';
 }
+
+fillSelect();
+renderRecent();
 </script>
 </body>
 </html>
