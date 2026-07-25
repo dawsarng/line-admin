@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สรุปผลประเมิน</title>
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+
+  <!-- ประตูรหัสผ่าน (ถ้าตั้งไว้ใน config) -->
+  <div class="gate" id="gate">
+    <div class="box">
+      <h2>เข้าสู่หน้าสรุปผล</h2>
+      <p>สำหรับผู้ดูแลระบบเท่านั้น</p>
+      <input type="password" id="pass" placeholder="รหัสผ่าน" style="margin-bottom:12px">
+      <button class="btn btn-primary" id="passBtn">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+
+  <div class="appbar">
+    <div class="brand"><span class="dot">L</span> สรุปผลประเมิน</div>
+    <a class="link" href="admin.html">← แผงแอดมิน</a>
+  </div>
+
+  <main class="page" id="content" style="display:none">
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="n" id="statAvg">0.0</div>
+        <div class="mini-stars" id="statStars"></div>
+        <div class="k">คะแนนเฉลี่ยรวม</div>
+      </div>
+      <div class="stat">
+        <div class="n" id="statCount">0</div>
+        <div class="k" style="margin-top:22px">จำนวนการประเมิน</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="recent-head">
+        <h3>คะแนนรายพนักงาน</h3>
+        <button class="btn btn-ghost btn-sm" id="refreshBtn">รีเฟรช</button>
+      </div>
+      <div id="empScores"><div class="empty">กำลังโหลด...</div></div>
+    </div>
+
+    <div class="card">
+      <div class="recent-head"><h3>ความเห็นล่าสุด</h3></div>
+      <div id="commentFeed"><div class="empty">กำลังโหลด...</div></div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/* ---- ประตูรหัสผ่าน ---- */
+function unlock(){ $('#gate').classList.remove('show'); $('#content').style.display = 'block'; load(); }
+if (CONFIG.DASHBOARD_PASSCODE){
+  $('#gate').classList.add('show');
+  const tryPass = () => { if ($('#pass').value === CONFIG.DASHBOARD_PASSCODE) unlock(); else toast('รหัสผ่านไม่ถูกต้อง'); };
+  $('#passBtn').onclick = tryPass;
+  $('#pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryPass(); });
+} else {
+  unlock();
+}
+
+/* ---- ดึงข้อมูลจากชีต ---- */
+async function fetchRows(){
+  if (!CONFIG.API_URL){ toast('ยังไม่ได้ตั้งค่า API_URL ใน config.js'); return []; }
+  try {
+    const res  = await fetch(CONFIG.API_URL, { method: 'GET' });
+    const data = await res.json();
+    return (data.rows || []).map(r => ({
+      name: r.employee || '—',
+      avg: Number(r.average) || 0,
+      comment: (r.comment || '').toString(),
+      at: new Date(r.time).getTime() || Date.now()
+    }));
+  } catch (e){ toast('อ่านข้อมูลจากชีตไม่สำเร็จ'); return []; }
+}
+
+async function load(){
+  const rs = await fetchRows();
+  const avg = rs.length ? rs.reduce((a, r) => a + r.avg, 0) / rs.length : 0;
+  $('#statAvg').innerHTML = avg.toFixed(1) + '<small> /5</small>';
+  $('#statStars').textContent = rs.length ? starStr(avg) : '';
+  $('#statCount').textContent = rs.length;
+
+  const map = {};
+  rs.forEach(r => { (map[r.name] = map[r.name] || []).push(r); });
+  const ranked = Object.entries(map).map(([name, list]) => ({
+    name, count: list.length, avg: list.reduce((a, r) => a + r.avg, 0) / list.length
+  })).sort((a, b) => b.avg - a.avg);
+
+  $('#empScores').innerHTML = ranked.length ? ranked.map(x => `
+    <div class="emp-row">
+      <div class="emp-top">
+        <div class="avatar">${initial(x.name)}</div>
+        <div class="info"><b>${escapeHtml(x.name)}</b><span>${x.count} การประเมิน</span></div>
+        <div class="emp-score">${x.avg.toFixed(1)}<small>/5</small></div>
+      </div>
+      <div class="bar"><i style="width:${(x.avg / 5 * 100).toFixed(0)}%"></i></div>
+    </div>`).join('') : '<div class="empty">ยังไม่มีข้อมูลประเมิน</div>';
+
+  const withComments = rs.filter(r => r.comment).sort((a, b) => b.at - a.at);
+  $('#commentFeed').innerHTML = withComments.length ? withComments.slice(0, 12).map(r => `
+    <div class="cmt">
+      <div class="cmt-head"><b>${escapeHtml(r.name)}</b><span class="s">${starStr(r.avg)}</span>· ${timeAgo(r.at)}</div>
+      <p>${escapeHtml(r.comment)}</p>
+    </div>`).join('') : '<div class="empty">ยังไม่มีความเห็นเพิ่มเติม</div>';
+}
+
+$('#refreshBtn').onclick = load;
+</script>
+</body>
+</html>
