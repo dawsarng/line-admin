@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สร้างลิงก์ประเมิน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</head>
+<body>
+
+  <div class="appbar">
+    <div class="brand"><span class="dot">L</span> สร้างลิงก์</div>
+    <a class="link" href="admin.html">← เลือกพนักงาน</a>
+  </div>
+
+  <main class="page">
+    <!-- มีพนักงาน -->
+    <div id="body" style="display:none">
+      <div class="who-card">
+        <div class="avatar" id="empAvatar">?</div>
+        <div class="t">
+          <small>สร้างลิงก์ประเมินให้</small>
+          <b id="empName">พนักงาน</b>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <button class="btn btn-primary" id="genBtn">🔗 สร้างลิงก์ใหม่</button>
+
+        <div class="link-result" id="linkResult">
+          <div class="qr-wrap">
+            <div class="qr-box" id="qrBox"></div>
+            <div class="qr-meta">
+              <div class="who">ลิงก์พร้อมส่ง</div>
+              <div class="hint">ให้ลูกค้าสแกน QR หรือส่งลิงก์ด้านล่าง</div>
+            </div>
+          </div>
+          <div class="linkbar">
+            <code id="resultLink">—</code>
+            <button class="btn btn-primary btn-sm" id="copyBtn">คัดลอก</button>
+          </div>
+          <a class="btn btn-ghost btn-sm" id="openBtn" href="#" target="_blank" rel="noopener" style="width:100%;margin-top:10px">เปิดฟอร์มนี้เพื่อดูตัวอย่าง →</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="recent-head"><h3>ลิงก์ที่สร้างในรอบนี้</h3></div>
+        <div id="recentLinks"></div>
+      </div>
+    </div>
+
+    <!-- ไม่มีพนักงาน -->
+    <div class="card" id="errBox" style="display:none;text-align:center;padding:30px 18px">
+      <h2 class="screen-title" style="font-size:19px">ยังไม่ได้เลือกพนักงาน</h2>
+      <p style="color:var(--muted);margin:6px 0 14px">กรุณากลับไปเลือกพนักงานก่อน</p>
+      <a class="btn btn-primary" href="admin.html">← ไปหน้าเลือกพนักงาน</a>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const empName = (new URLSearchParams(location.search).get('e') || '').trim();
+let currentUrl = '';
+let recent = [];
+
+function buildUrl(name){
+  const token = Math.random().toString(36).slice(2, 10);
+  const q = '?e=' + encodeURIComponent(name) + '&t=' + token;
+  if (CONFIG.FORM_LIFF_ID) return 'https://liff.line.me/' + CONFIG.FORM_LIFF_ID + q;   // เปิดผ่าน LINE
+  return CONFIG.FORM_BASE_URL + q;
+}
+
+if (!empName){
+  $('#errBox').style.display = 'block';
+} else {
+  $('#body').style.display = 'block';
+  $('#empName').textContent = empName;
+  $('#empAvatar').textContent = initial(empName);
+  renderRecent();
+}
+
+$('#genBtn').onclick = () => {
+  currentUrl = buildUrl(empName);
+  $('#resultLink').textContent = currentUrl;
+  $('#openBtn').href = currentUrl;
+  const box = $('#qrBox'); box.innerHTML = '';
+  new QRCode(box, { text: currentUrl, width: 96, height: 96, colorDark: '#04913F', colorLight: '#ffffff' });
+  $('#linkResult').classList.add('show');
+  recent.unshift({ at: Date.now() });
+  renderRecent();
+  toast('สร้างลิงก์ใหม่แล้ว');
+};
+
+$('#copyBtn').onclick = async () => {
+  try { await navigator.clipboard.writeText(currentUrl); } catch(e){}
+  toast('คัดลอกลิงก์แล้ว ✓');
+};
+
+function renderRecent(){
+  const el = $('#recentLinks');
+  el.innerHTML = recent.length ? recent.slice(0, 10).map((l, i) => `
+    <div class="link-item">
+      <div class="avatar">${initial(empName)}</div>
+      <div class="info"><b>ลิงก์ #${recent.length - i}</b><span>สร้างเมื่อ ${timeAgo(l.at)}</span></div>
+    </div>`).join('') : '<div class="empty">ยังไม่ได้สร้างลิงก์ กด "สร้างลิงก์ใหม่" ด้านบน</div>';
+}
+</script>
+</body>
+</html>
