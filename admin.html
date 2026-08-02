@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>แผงแอดมิน · สร้างลิงก์ประเมิน</title>
+<title>แผงแอดมิน · เลือกพนักงาน</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </head>
@@ -18,94 +17,44 @@
 
   <main class="page">
     <div class="card">
-      <div class="eyebrow">สร้างลิงก์</div>
+      <div class="eyebrow">เลือกพนักงาน</div>
       <h1 class="screen-title">สร้างลิงก์ประเมิน</h1>
-      <p class="screen-sub">เลือกพนักงาน แล้วสร้างลิงก์หรือ QR ให้ลูกค้าประเมิน</p>
+      <p class="screen-sub">เลือกพนักงาน แล้วไปหน้าสร้างลิงก์ของคนนั้นโดยเฉพาะ</p>
 
       <label class="field" for="empSelect">พนักงาน</label>
-      <div class="row" style="margin-bottom:14px">
-        <select id="empSelect" style="flex:2"></select>
-        <button class="btn btn-ghost btn-sm" id="addEmpBtn" style="flex:1;white-space:nowrap">+ เพิ่ม</button>
-      </div>
+      <select id="empSelect" style="width:100%;margin-bottom:14px"></select>
 
-      <button class="btn btn-primary" id="genBtn">🔗 สร้างลิงก์ประเมิน</button>
-
-      <div class="link-result" id="linkResult">
-        <div class="qr-wrap">
-          <div class="qr-box" id="qrBox"></div>
-          <div class="qr-meta">
-            <div class="who" id="resultWho">—</div>
-            <div class="hint">ให้ลูกค้าสแกน QR หรือส่งลิงก์ด้านล่าง</div>
-          </div>
-        </div>
-        <div class="linkbar">
-          <code id="resultLink">—</code>
-          <button class="btn btn-primary btn-sm" id="copyBtn">คัดลอก</button>
-        </div>
-        <a class="btn btn-ghost btn-sm" id="openBtn" href="#" target="_blank" rel="noopener" style="width:100%;margin-top:10px">เปิดฟอร์มนี้เพื่อดูตัวอย่าง →</a>
-      </div>
+      <button class="btn btn-primary" id="goBtn">ไปหน้าสร้างลิงก์ →</button>
     </div>
 
     <div class="card">
-      <div class="recent-head"><h3>ลิงก์ที่สร้างในรอบนี้</h3></div>
-      <div id="recentLinks"></div>
+      <div class="recent-head"><h3>หรือแตะเลือกจากรายชื่อ</h3></div>
+      <div id="empList"></div>
     </div>
   </main>
 
-  <p class="note">รายชื่อพนักงานแก้ไขถาวรได้ในไฟล์ <b>config.js</b> · ปุ่ม "+ เพิ่ม" เพิ่มได้เฉพาะรอบนี้เท่านั้น</p>
-  <div class="toast" id="toast"></div>
+  <p class="note">แก้ไขรายชื่อพนักงานได้ในไฟล์ <b>config.js</b></p>
 
 <script>
 let employees = [...CONFIG.EMPLOYEES];
-let recent = [];
-let currentUrl = '';
 
 function fillSelect(){
   $('#empSelect').innerHTML = employees.map(n => `<option>${n}</option>`).join('');
 }
-function buildUrl(name){
-  const token = Math.random().toString(36).slice(2, 10);
-  const q = '?e=' + encodeURIComponent(name) + '&t=' + token;
-  // ถ้าตั้ง LIFF ไว้ ให้ลิงก์เปิดผ่าน LINE (เพื่อดึง User ID กันคนเดิมประเมินซ้ำ)
-  if (CONFIG.FORM_LIFF_ID) return 'https://liff.line.me/' + CONFIG.FORM_LIFF_ID + q;
-  return CONFIG.FORM_BASE_URL + q;
+function renderList(){
+  $('#empList').innerHTML = employees.map(n => `
+    <a class="link-item" href="employee.html?e=${encodeURIComponent(n)}" style="text-decoration:none;color:inherit;cursor:pointer">
+      <div class="avatar">${initial(n)}</div>
+      <div class="info"><b>${escapeHtml(n)}</b><span>แตะเพื่อสร้างลิงก์ให้พนักงานคนนี้</span></div>
+      <span style="color:var(--muted);font-size:20px">›</span>
+    </a>`).join('');
 }
+function goToEmployee(name){ location.href = 'employee.html?e=' + encodeURIComponent(name); }
 
-$('#addEmpBtn').onclick = () => {
-  const name = prompt('ชื่อพนักงานใหม่ (รอบนี้):');
-  if (name && name.trim()){ employees.push(name.trim()); fillSelect(); $('#empSelect').value = name.trim(); toast('เพิ่มแล้ว'); }
-};
-
-$('#genBtn').onclick = () => {
-  const name = $('#empSelect').value;
-  currentUrl = buildUrl(name);
-  $('#resultWho').textContent = 'ประเมิน: ' + name;
-  $('#resultLink').textContent = currentUrl;
-  $('#openBtn').href = currentUrl;
-  const box = $('#qrBox'); box.innerHTML = '';
-  new QRCode(box, { text: currentUrl, width: 96, height: 96, colorDark: '#04913F', colorLight: '#ffffff' });
-  $('#linkResult').classList.add('show');
-  recent.unshift({ name, at: Date.now() });
-  renderRecent();
-  toast('สร้างลิงก์เรียบร้อย');
-};
-
-$('#copyBtn').onclick = async () => {
-  try { await navigator.clipboard.writeText(currentUrl); } catch(e){}
-  toast('คัดลอกลิงก์แล้ว ✓');
-};
-
-function renderRecent(){
-  const el = $('#recentLinks');
-  el.innerHTML = recent.length ? recent.slice(0, 8).map(l => `
-    <div class="link-item">
-      <div class="avatar">${initial(l.name)}</div>
-      <div class="info"><b>${escapeHtml(l.name)}</b><span>สร้างเมื่อ ${timeAgo(l.at)}</span></div>
-    </div>`).join('') : '<div class="empty">ยังไม่ได้สร้างลิงก์</div>';
-}
+$('#goBtn').onclick = () => goToEmployee($('#empSelect').value);
 
 fillSelect();
-renderRecent();
+renderList();
 </script>
 </body>
 </html>
